@@ -1,0 +1,27 @@
+/home/tanusha/myxos/spl/spl --int=1 /home/tanusha/myxos/spl/spl_progs/int1.spl
+/home/tanusha/myxos/spl/spl --int=2 /home/tanusha/myxos/spl/spl_progs/int2.spl
+/home/tanusha/myxos/spl/spl --int=3 /home/tanusha/myxos/spl/spl_progs/int3.spl
+/home/tanusha/myxos/spl/spl --int=4 /home/tanusha/myxos/spl/spl_progs/int4.spl
+/home/tanusha/myxos/spl/spl --int=5 /home/tanusha/myxos/spl/spl_progs/int5.spl
+/home/tanusha/myxos/spl/spl --int=6 /home/tanusha/myxos/spl/spl_progs/int6.spl
+/home/tanusha/myxos/spl/spl --int=7 /home/tanusha/myxos/spl/spl_progs/int7.spl
+/home/tanusha/myxos/spl/spl --int=timer /home/tanusha/myxos/spl/spl_progs/timer.spl
+/home/tanusha/myxos/spl/spl --exhandler /home/tanusha/myxos/spl/spl_progs/exhandler.spl
+/home/tanusha/myxos/spl/spl --os /home/tanusha/myxos/spl/spl_progs/os_startup.spl
+/home/tanusha/myxos/apl/apl /home/tanusha/myxos/apl/apl_progs/even.apl
+/home/tanusha/myxos/apl/apl /home/tanusha/myxos/apl/apl_progs/create.apl
+cd /home/tanusha/myxos/xfs-interface/
+/home/tanusha/myxos/xfs-interface/ fdisk
+/home/tanusha/myxos/xfs-interface/xfs-interface load --os /home/tanusha/myxos/spl/spl_progs/os_startup.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --int=1 /home/tanusha/myxos/spl/spl_progs/int1.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --int=2 /home/tanusha/myxos/spl/spl_progs/int2.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --int=3 /home/tanusha/myxos/spl/spl_progs/int3.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --int=4 /home/tanusha/myxos/spl/spl_progs/int4.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --int=5 /home/tanusha/myxos/spl/spl_progs/int5.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --int=6 /home/tanusha/myxos/spl/spl_progs/int6.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --int=7 /home/tanusha/myxos/spl/spl_progs/int7.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --int=timer /home/tanusha/myxos/spl/spl_progs/timer.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --init /home/tanusha/myxos/apl/apl_progs/odd.xsm
+/home/tanusha/myxos/xfs-interface/xfs-interface load --init /home/tanusha/myxos/apl/apl_progs/even.xsm
+cd /home/tanusha/myxos/xsm
+./xsm --timer=0

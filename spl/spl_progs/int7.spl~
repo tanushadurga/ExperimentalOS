@@ -1,0 +1,151 @@
+//print("-------------------");
+//print("In INT 7");
+
+//print("set phySP");
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNo S2;
+sysCallNo=[physicalSP-1];
+
+alias FILEphysical S3;
+alias SWOFTindex S4;
+alias newPCB S5;
+alias temp S6;
+alias temp2 S7;
+alias MF S8;
+alias physical S9;
+alias PPOFTindex S10;
+alias currentPID S11;
+alias i S12;
+alias currentphysical S13;
+alias currentPCB S14;
+alias SWOFTphysical S15;
+
+//Exit()
+if(sysCallNo==10)then
+//print("EXIT");
+//print("halt?");
+	currentPID = (PTBR - 1024) / 8;
+	currentPCB = READY_LIST ;
+		
+	while(currentPCB<READY_LIST+1024&&[currentPCB+1]!=1)do
+		currentPCB=currentPCB+32;
+	endwhile;
+	if(currentPCB>=READY_LIST+1024)then
+		//print("PCB-0s");
+		halt;
+	endif;
+//print("PCB");
+	currentPCB = READY_LIST;
+	while([currentPCB+1]!=2)do
+		currentPCB=currentPCB+32;
+	endwhile;
+//print("files");
+	FILEphysical=currentPCB+15;
+	while(FILEphysical<currentPCB+31)do
+		if([FILEphysical+0]!=-1)then
+			SWOFTphysical=1344;
+			SWOFTindex=[FILEphysical];
+			SWOFTphysical=SWOFTphysical+2*SWOFTindex;
+			[SWOFTphysical+1]=[SWOFTphysical+1]-1;
+			if([SWOFTphysical+1]==0)then
+				[SWOFTphysical]=-1;
+			endif;
+			[FILEphysical]=-1;
+			[FILEphysical+1]=-1;
+		endif;
+		FILEphysical=FILEphysical+2;
+	endwhile;
+//print("state");
+	[currentPCB+1]=0;
+//print("MF");---------------------modified stge11
+	temp=READY_LIST;
+	currentPID=(PTBR-1024)/8;
+	while(temp<READY_LIST+1024)do
+		if([temp+1]==100+currentPID)then
+			[temp+1]=1;
+		endif;
+		temp=temp+32;
+	endwhile;
+	
+//-------------------------------modified
+alias PTBR_physical S2;
+PTBR_physical=PTBR;
+	while(PTBR_physical<PTBR+6)do
+		if([PTBR_physical+1]=="01" || [PTBR_physical+1]=="11")then
+			[MEM_LIST+[PTBR_physical]]=[MEM_LIST+[PTBR_physical]]-1;
+		endif;
+		if([PTBR_physical+1]=="00" && [PTBR_physical]>=448)then
+			[DISK_LIST+[PTBR_physical]]=[DISK_LIST+[PTBR_physical]]-1;
+		endif;
+			PTBR_physical=PTBR_physical+2;
+	endwhile;
+store(6,20);
+//------------------------------------------
+//print("PTBR");
+	[PTBR+0]=-1;
+	[PTBR+1]="00";
+	[PTBR+2]=-1;
+	[PTBR+3]="00";
+	[PTBR+4]=-1;
+	[PTBR+5]="00";
+	[PTBR+6]=-1;
+	[PTBR+7]="00";
+//print("next");//round robin method
+	newPCB=currentPCB+32;
+	if(newPCB>READY_LIST+1024)then
+		newPCB=READY_LIST;
+	endif;
+	while ([newPCB + 1]!=1) do
+		newPCB=newPCB+32;
+		if(newPCB>READY_LIST+1024)then
+			newPCB=READY_LIST;
+		endif;	
+	endwhile;
+//print("set PCB");
+	[ newPCB + 1 ] = 2;
+	BP=[ newPCB + 2 ];
+	SP=[ newPCB + 3 ];
+	PTBR=[ newPCB + 5 ];
+	PTLR=[ newPCB + 6 ];	
+	R0=[ newPCB + 7 ];
+	R1=[ newPCB + 8 ];
+	R2=[ newPCB + 9 ];
+	R3=[ newPCB + 10];
+	R4=[ newPCB + 11];
+	R5=[ newPCB + 12];
+	R6=[ newPCB + 13];
+	R7=[ newPCB + 14];
+	SP = SP + 1; 
+	alias newphysicalSP S2; 
+	newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
+	[ newphysicalSP ] = [ newPCB + 4 ];
+//print("!EXIT");
+	ireturn;
+endif;
+if(sysCallNo==13)then
+	alias waitPID S6;
+	waitPID=[physicalSP-3];
+	currentPID=(PTBR-1024)/8;
+	currentPCB=READY_LIST+32*currentPID;
+	if([READY_LIST+waitPID*32 +1]==0 || [READY_LIST+waitPID*32 +1]==2)then	
+		[physicalSP-2]=-1;
+	endif;
+	[currentPCB+1]=100+waitPID;
+	inline "JMP 4608";
+	ireturn;
+endif;
+
+if(sysCallNo == 14) then
+	temp=READY_LIST;
+	currentPID=(PTBR-1024)/8;
+	while(temp<READY_LIST+1024)do
+		if([temp+1]==100+currentPID)then
+			[temp+1]=1;
+		endif;
+		temp=temp+32;
+	endwhile;
+	
+	ireturn;
+endif;

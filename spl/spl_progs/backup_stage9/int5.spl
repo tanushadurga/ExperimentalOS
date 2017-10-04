@@ -1,0 +1,176 @@
+alias physicalSP S0;
+physicalSP = ([PTBR+2*(SP/512)]*512 )+ SP%512;
+
+alias systemcall S1;
+systemcall = [physicalSP-1];
+
+
+
+alias newPCB S2;
+alias newPID S3;
+alias currentPCB S4;
+alias currentPID S5;
+alias temp S6;
+alias temp1 S7;
+alias temp2 S8;
+alias i S9;
+alias child_page S10;
+alias available S11;
+alias required S12;
+alias PPOFTphysical S13;
+alias ML S14;
+alias child_PTBR S15;
+
+if(systemcall==8)then
+	currentPID=(PTBR-1024)/8;
+	//current pcb physical address of current pcb;
+        currentPCB=READY_LIST + 32*currentPID;
+        newPCB=currentPCB+32;
+	if(newPCB>READY_LIST+1024)then
+		newPCB=READY_LIST;
+	endif;
+	while ([newPCB + 1]!=0&&newPCB!=currentPCB) do
+		newPCB=newPCB+32;
+		if(newPCB>READY_LIST+1024)then
+			newPCB=READY_LIST;
+		endif;	
+	endwhile;
+	if(newPCB==currentPCB)then
+		//print("full");
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;
+
+	newPID=(newPCB - READY_LIST)/32;
+	[newPCB+0]=newPID;
+
+//4
+
+	
+ 
+ //1.
+ 	temp=PTBR;
+ 	required=0;
+ 	available=0;
+ 	while(temp<PTBR+8 )do
+ 		if([temp+1]=="01" || [temp+1]=="11")then
+ 			required=required+1;
+ 		endif;
+ 		temp=temp+2;
+ 	endwhile;
+ 	
+ 	
+ 	ML=MEM_LIST+25;
+	while(ML<MEM_LIST+64)do
+		if([ML]!=0)then
+			available=available+1;
+		endif;
+		ML=ML+1;
+	endwhile;
+	if(available<required) then
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;
+	//2.
+	alias j S11;
+	i=0;
+	child_PTBR=1024+newPID*8;
+	j=0;
+	temp=0;
+	ML=MEM_LIST+25;
+	//-----------------------------
+	[child_PTBR+0]=[PTBR+0];
+	[child_PTBR+1]=[PTBR+1];
+	[child_PTBR+2]=[PTBR+2];
+	[child_PTBR+3]=[PTBR+3];
+	[child_PTBR+4]=[PTBR+4];
+	[child_PTBR+5]=[PTBR+5];
+	[child_PTBR+6]=[PTBR+6];
+	[child_PTBR+7]=[PTBR+7];
+	
+	//-------------------------------
+	while(temp<required && ML < MEM_LIST+64)do
+		if([ML]==0)then
+			if([PTBR+i+1]=="01" || [PTBR+i+1]=="11")then
+				[ML]=1;
+				child_page=ML%64;
+				/////////////////////////boo undhi
+				temp1=child_page*512;
+				temp2=[PTBR+i]*512;
+				//copy page
+				while(temp1<child_page*512+512)do
+					[temp1]=[temp2];
+					temp1=temp1+1;
+					temp2=temp2+1;
+				endwhile;
+				[child_PTBR+j]=child_page;
+				[child_PTBR+j+1]=[PTBR+i+1];
+				temp=temp+1;
+				i=i+2;
+				j=j+2;
+			else
+				j=j+2;
+				i=i+2;
+				continue;
+			endif;
+		endif;
+		ML=ML+1;
+	endwhile;
+	//step 5
+//breakpoint;
+	
+//
+
+	[newPCB+2]=BP;
+//sp
+	[newPCB+3]=SP-1;
+//ip
+	[newPCB+4]=[physicalSP];
+//PTBR
+	[newPCB+5]=child_PTBR;
+	[newPCB+6]=[currentPCB+6];
+	[newPCB+7]=R0;
+	[newPCB+8]=R1;
+	[newPCB+9]=R2;
+	[newPCB+10]=R3;
+	[newPCB+11]=R4;
+	[newPCB+12]=R5;
+	[newPCB+13]=R6;
+	[newPCB+14]=R7;
+	PPOFTphysical = currentPCB + 15;
+	temp=15;
+	//SWOFTphysical=1344;
+	PPOFTphysical=currentPCB+15;
+	i=15;
+	while(PPOFTphysical<currentPCB+31)do
+		if([PPOFTphysical]!=-1)then
+			[FILE_TABLE+[PPOFTphysical]*2+1]=[FILE_TABLE+[PPOFTphysical]*2+1]+1;
+			[newPCB+i]=[PPOFTphysical];
+			[newPCB+i+1]=[PPOFTphysical+1];
+		else
+			[newPCB+i]=[PPOFTphysical];
+			[newPCB+i+1]=[PPOFTphysical+1];
+		endif;
+		i=i+2;
+		PPOFTphysical=PPOFTphysical+2;
+	endwhile;
+//print("state");
+	[newPCB+1]=1;
+	[physicalSP-2]=newPID;
+//print("child ret");
+	temp=[newPCB+3];//SP of the child process
+	physicalSP = ([child_PTBR + 2 * (temp / 512)] * 512) + (temp % 512);
+	//print(physicalSP);
+	[physicalSP-1]=-2;//
+//print("!FORK");
+//breakpoint;
+	ireturn;
+	
+	
+	
+endif;
+
+
+//duplicating pcb
+
+

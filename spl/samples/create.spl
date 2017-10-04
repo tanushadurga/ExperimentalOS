@@ -1,0 +1,92 @@
+alias pysicalsp S0;
+pysicalsp = ([PTBR+ 2 * (SP/512) ]*512)+(SP%512);
+
+alias systemcall S1;
+syatemcall = [pysicalsp-1]//system call
+
+alias a S2;//[pysicalsp-2] has return value
+
+a=[pysicalsp-3]// arguments(only one argument that is file name.
+alias i S3;
+i=FAT;
+if(systemcall==1) then 
+    
+    while(i<FAT+512)do//checking name of file
+    	if(a==[i])then
+    		[pysicalsp-2]=0;
+    		ireturn;
+    	else
+    		i=i+8;
+    	endif;
+    endwhile;
+    	
+    i=DISK_LIST;//checking for free block in disk fee list
+    
+    while(i<448)do
+       if([i]==0)then
+       		break;
+       	else
+       		i=i+1;
+       	endif;
+    endwhile;
+    
+    if(i>=448)then
+    	 [pysicalsp-2]=-1;
+    	 ireturn;
+    //here i have free basic block
+          
+    alias free_fat S4;
+    free_fat=FAT;
+    
+    while(free_fat<FAT+512)do
+    	if([free_fat+2]==-1)then
+    	 	break;
+    	else
+    		free_fat=free_fat+8;
+    	endif;
+    endwhile;	
+    
+    if(free_fat>=FAT+512)do  
+         
+    	[pysicalsp-2]=-1;
+    endif;
+    
+    [free_fat]="file.dat";
+    [free_fat+1]=0;
+    [free_fat+2]=i-FAT-1;
+    
+    	
+       load(1,[free_fat+2]);
+       
+    alias spad=512;
+       
+       while(spad<1024)do
+       		[spad]=-1;
+       		spad=spad+1;
+       	endwhile;
+       	[i]=1; //basic block
+          
+    
+   store(5,19);
+   store(6,20);
+   [pysicalsp-2]=0;
+   printf("!CREATE");
+   ireturn; 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+endif
+
+
+
+ireturn
+

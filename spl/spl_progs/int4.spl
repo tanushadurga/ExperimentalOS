@@ -1,0 +1,103 @@
+alias physicalsp S0;
+physicalsp = ([PTBR+2*(SP/512)]*512 )+ SP%512;
+
+alias systemcall S1;
+systemcall = [physicalsp-1];
+
+alias file_des S2;
+file_des = [physicalsp-4];
+
+alias write_word S3;
+write_word = [physicalsp-3];
+
+
+alias current_pid S4;
+current_pid=(PTBR-1024)/8;
+
+alias current_PCB S5;
+alias ppoft_physical S6;
+alias ppoft_index S7;
+alias swoft_index S8;
+alias lseek  S9;
+alias swoft_physical  S10;
+alias data_b S11;
+alias data_physical S12;
+alias data_index S13;
+alias fat_physical S13;
+alias db_physical S14;
+current_PCB = READY_LIST + (32*current_pid);
+
+if(systemcall==5)then
+    ppoft_physical = current_PCB +15;
+    
+     if(file_des<0 || file_des>7)then//check wherther in valid range
+            //print("invalid");
+            [physicalsp-2]=-1;
+            ireturn;
+         endif;
+    
+    ppoft_physical=ppoft_physical+file_des*2;
+    if([ppoft_physical]==-1)then
+       //print("file isnt O");
+       [physicalsp-2]=-1;
+       ireturn;
+    endif;
+    
+    swoft_index=[ppoft_physical];
+    lseek=[ppoft_physical+1];
+    //print(swoft_index);
+    swoft_physical = FILE_TABLE + swoft_index*2;
+    
+    //fat_index = [swoft_physical];//has fat index
+    //print([swoft_physical]);//fat index
+    fat_physical= FAT + [swoft_physical]*8;
+    
+    load(1,[fat_physical+2]);
+
+
+    data_b=(lseek/512);
+    data_b=512+data_b;
+    data_b=[data_b];
+    if((lseek/512)>255)then
+        //print("> 255");
+    	[physicalsp-2]=-1;
+    	ireturn;
+    endif;
+    //print("lseek");
+   // //print([data_b]);
+
+      db_physical= 512+(lseek/512);
+    if([db_physical]==-1)then
+
+       //print("c_disk_free");
+       data_physical=DISK_LIST;
+       while(data_physical<DISK_LIST+448 && [data_physical]==1)do
+          data_physical=data_physical+1;
+       endwhile;
+       if(data_physical >= DISK_LIST +448)then//if no free block
+         [physicalsp-2]=-1;
+         //print("no free");
+         ireturn;
+       endif;
+
+    
+      //print("boo"); 
+       [db_physical]=data_physical%512; //add data block number to basic block
+       data_b=[db_physical];
+       [data_physical]=1;  // say block is used by set to 1;
+       store(1,[fat_physical+2]);//store back basic block
+       [fat_physical+1]= [fat_physical+1]+512; //increasing file size by 512;
+       store(5,19);
+       store(9,20);
+     endif;
+     
+       load(1,data_b);
+       //print(write_word);
+       [512+(lseek%512)]=write_word;
+       //print(512+(lseek%512));
+       //print(lseek%512);
+       store(1,data_b);
+       [ppoft_physical+1]=[ppoft_physical+1]+1;
+       [physicalsp-2]=0;
+       ireturn;
+endif;

@@ -1,0 +1,174 @@
+alias physicalsp S0;
+physicalsp = ([PTBR+ 2 * (SP/512) ]*512)+(SP%512);
+
+alias systemcall S1;
+systemcall = [physicalsp-1];//system call
+
+alias a S2;         
+
+a=[physicalsp-3];// arguments(only one argument that is file name.
+alias fat_physical S3;
+alias spad S5;//scratchpad 
+alias free_fat S4;//checking for free fat
+alias swoft_physical S6;
+alias basic_physical S7;
+alias data_physical S8;
+alias temp_spad S9;
+alias temp S10;
+alias temp1 S11;
+alias fat_index S12;
+fat_physical=FAT;
+
+
+
+if(systemcall==1)then 
+    //print("FAT check");
+    while(fat_physical<FAT+512)do//checking name of file
+    	if(a==[fat_physical])then
+    		[physicalsp-2]=0;
+    		ireturn;
+    	else
+    		fat_physical=fat_physical+8;
+    	endif;
+    endwhile;
+    //print("disk check");
+    fat_physical=DISK_LIST;//checking for free block in disk fee list
+    
+    while(fat_physical<DISK_LIST+448)do
+       if([fat_physical]==0)then
+       		break;
+       	else
+       		fat_physical=fat_physical+1;
+       	endif;
+    endwhile;
+    
+    if(fat_physical>=DISK_LIST+448)then
+    	 [physicalsp-2]=-1;
+    	 ireturn;
+    endif;	 
+    //here fat_physical have free basic block
+ //print("-1 in fat check");  
+
+    free_fat=FAT;
+    
+    while(free_fat<FAT+512)do
+    	if([free_fat+2]==-1)then
+    	 	break;
+    	else
+    		free_fat=free_fat+8;
+    	endif;
+    endwhile;	
+    
+    if(free_fat>=FAT+512)then 
+         
+    	[physicalsp-2]=-1;
+    	ireturn;
+    endif;
+
+    [free_fat]=a;
+    [free_fat+1]=0;
+    [free_fat+2]=fat_physical%512;
+    [fat_physical]=1;
+    
+//print([free_fat+2]);   
+    
+//print("about to create"); 	
+       load(1,[free_fat+2]);
+
+    spad=512;
+       
+       while(spad<1024)do
+       		[spad]=-1;
+       		spad=spad+1;
+       	endwhile;
+
+          
+    
+   store(5,19);
+   store(6,20);
+   store(1,[free_fat+2]);
+   [physicalsp-2]=0;
+   //print("!CREATE");
+
+      ireturn;  
+endif;
+//DELETE
+if(systemcall==4)then
+//file exists?
+    //print("FAT check");
+    //print(fat_physical);
+    while(fat_physical<FAT+512)do//checking name of file
+    	if(a==[fat_physical])then
+    		break;
+    	else
+    		fat_physical=fat_physical+8;
+    	endif;
+    endwhile;
+//file not present***************************
+    if(fat_physical>=FAT+512)then
+      //print("NO file!");
+      [physicalsp-2]=-1;
+      ireturn;   
+    endif;
+//check if open
+    //print("c_swoft");
+    fat_index=(fat_physical%512)/8;
+    swoft_physical = FILE_TABLE;
+    while(swoft_physical < FILE_TABLE+128 && [swoft_physical+0]!=fat_index)do
+     swoft_physical=swoft_physical+2;
+    endwhile;
+    //print([swoft_physical]);
+    //print(fat_index);
+//file open***************************
+    if([swoft_physical]==fat_index && swoft_physical < FILE_TABLE+128)then
+    [physicalsp-2]=-1;
+    ireturn;
+    endif;
+//load basic block and remove data in data blocks
+    load(1,[fat_physical+2]);
+    basic_physical=512*[fat_physical+2];
+    spad=512;
+    while(spad<1024 &&  [spad]!=-1)do
+//fetchdatablock1,2,.....
+//        data_physical=512*[spad];//not needed
+        temp1=spad;
+        temp=[spad];
+//load DataBlock1,2,....
+        load(1,[spad]);
+        temp_spad = 512;
+//clear block
+        while(temp_spad<1024)do
+        [temp_spad]="";
+        temp_spad=temp_spad+1;
+        endwhile;
+        store(1,temp);
+        load(1,[fat_physical+2]);
+//invalidate on diskfree list(datablock)
+        [DISK_LIST+temp]=0;//for data block
+        //print([temp]);
+        [spad]="";
+        spad=spad+1;
+    endwhile;
+//clear BasicBlock    
+    while(spad<1024)do
+       [spad]="";
+       spad=spad+1;
+   endwhile;
+   store(1,[fat_physical+2]);
+//invalidate on diskfreelist(basicblock)
+   [DISK_LIST+[fat_physical+2]]=0;//for basic block
+//invalidate on FAT
+   [fat_physical+0]=-1;
+   [fat_physical+1]=0;
+   [fat_physical+2]=-1;
+    
+   store(5,19);
+   store(6,20);
+   [physicalsp-2]=0;
+   //print("!DELETED");
+
+      ireturn; 
+endif;
+
+
+

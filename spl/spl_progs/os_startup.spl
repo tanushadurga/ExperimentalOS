@@ -1,0 +1,116 @@
+load(7,1);//exception handler
+load(8,2);
+load(23,17);//int=7
+load(24,18);
+
+
+load (11, 5);//loading interrupt 1 from disk to memory
+load (12, 6);//stage5
+
+load (9, 3);//loading timer interrupt
+load (10, 4);//stage5
+
+
+//removing init process loading		//init program loading
+//load(25,21);	// Load 1st page of code from disk to memory//
+//load(26,22);	// Load 2nd page of code from disk to memory
+//load(27,23);	// Load 3rd page of code from disk to memory
+
+
+
+load(5,19);
+load(6,20);
+
+
+load(13,7);
+load(14,8);
+load(15,9);
+load(16,10);
+load(17,11);
+load(18,12);
+//int5
+load(19,13);
+load(20,14);
+//int6
+load(21,15);
+load(22,16);
+//int7
+load(23,17);
+load(24,18);
+
+//SWOFT
+alias counter S0;			
+counter = 0;
+//breakpoint;
+while ( counter <  128) do			// 64 entries, each of size 2 words
+	[ FILE_TABLE + counter + 0] = -1;	// Set FAT Index to -1
+	[ FILE_TABLE + counter + 1] =  0;	// Set File Open Count to 0
+	counter = counter + 2;			// Move to next entry
+endwhile;
+//breakpoint;
+//PPOFT
+counter = 15;
+while(counter < 31)do
+   [READY_LIST+counter]=-1;
+   counter=counter+1;
+endwhile;
+
+//fork
+counter=MEM_LIST;
+while(counter<MEM_LIST+29)do
+    [counter]=1;
+    counter=counter+1;
+endwhile;
+
+while(counter<MEM_LIST+64)do
+	[counter]=0;
+	counter=counter+1;
+endwhile;
+//PCB state field set to zero indicating free;
+counter=READY_LIST;
+while(counter<READY_LIST+1024)do
+	[counter+1]=0;
+	counter=counter+32;
+endwhile;
+//fork
+//exception handler//
+[MEM_LIST+25]=0;
+[MEM_LIST+26]=0;
+[MEM_LIST+27]=0;
+
+PTBR=1024;
+PTLR=4;
+
+[PTBR +0]=21;
+[PTBR +1]="00";
+[PTBR +2]=22;
+[PTBR +3]="00";
+[PTBR +4]=23;
+[PTBR +5]="00";
+[PTBR +6]=28;
+[PTBR +7]="01";
+//making swap unused in disk free list
+//need to make 0 since after power off we need to make them erase :)
+counter=DISK_LIST+448;
+
+while(counter<DISK_LIST+512)do
+	[counter]=0;
+	counter=counter+1;
+endwhile;
+
+store(6,20);
+[READY_LIST + 0] = 0;//pcbcd 
+[READY_LIST + 2] = 3*512;
+[READY_LIST + 3] = 3*512;//SP
+[READY_LIST + 4] = 0;//IP
+[READY_LIST + 5] = 1024;//ptbr
+
+[READY_LIST + 6] = 4;//PTlR of init
+[READY_LIST + 1] = 2;//state of init is running
+[READY_LIST + 31] = 0;//parent id of init
+
+//breakpoint;
+SP=3*512;
+//breakpoint;
+[28*512]=0;
+ireturn;

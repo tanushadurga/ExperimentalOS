@@ -1,0 +1,225 @@
+//fork
+alias physicalSP S0;
+physicalSP = ([PTBR+2*(SP/512)]*512 )+ SP%512;
+
+alias systemcall S1;
+systemcall = [physicalSP-1];
+
+
+
+alias newPCB S2;
+alias newPID S3;
+alias currentPCB S4;
+alias currentPID S5;
+alias temp S6;
+alias temp1 S7;
+alias temp2 S8;
+alias PTBR_physical S9;
+alias child_page S10;
+alias DF S11;
+alias required S12;
+alias PPOFTphysical S13;
+alias ML S14;
+alias child_PTBR S15;
+
+if(systemcall==8)then
+	currentPID=(PTBR-1024)/8;
+	//current pcb physical address of current pcb;
+        currentPCB=READY_LIST + 32*currentPID;
+        newPCB=currentPCB+32;
+	if(newPCB>READY_LIST+1024)then
+		newPCB=READY_LIST;
+	endif;
+	while ([newPCB + 1]!=0&&newPCB!=currentPCB) do
+		newPCB=newPCB+32;
+		if(newPCB>READY_LIST+1024)then
+			newPCB=READY_LIST;
+		endif;	
+	endwhile;
+
+	if(newPCB==currentPCB)then
+		//print("full");
+		[physicalSP-2]=-1;
+		ireturn;
+	endif;
+
+	newPID=(newPCB - READY_LIST)/32;
+	[newPCB+0]=newPID;
+//4
+//modification
+	
+ 
+ //1.
+ 	ML=MEM_LIST+25;
+ 	while(ML<MEM_LIST+64)do
+ 		if([ML]==0)then
+ 			break;
+ 		endif;
+ 		ML=ML+1;
+ 	endwhile;
+ //indicating no free page for stack
+alias victim_page S1;
+ 	if(ML>=MEM_LIST+64)then
+//---------------------page replace
+		//----------------------------
+		PTBR_physical=PTBR;
+		while(1==1)do
+			if(PTBR_physical>1278)then//check if exceeding pagetable;
+				PTBR_physical=1024;
+			endif;
+			if([PTBR_physical+1]=="00")then//on disk
+				PTBR_physical=PTBR_physical+2;
+				continue;
+			endif;
+			if(PTBR_physical%8==6)then//stack
+				PTBR_physical=PTBR_physical+2;
+				continue;
+			endif;
+			if([MEM_LIST+[PTBR_physical]]>1)then//shared more than 1
+				PTBR_physical=PTBR_physical+2;
+				continue;
+			endif;
+			if([PTBR_physical+1]=="11")then//giving second chance
+				[PTBR_physical+1]="01";
+				PTBR_physical=PTBR_physical+2;
+				continue;
+			endif;
+			if([PTBR_physical+1]=="01")then//using;applying second chance algo
+				break;
+			endif;
+			print("Fork-Boo");			
+			breakpoint;
+		endwhile;
+		if([PTBR_physical+1]=="01")then//using;applying second chance algo
+			DF=DISK_LIST+448;
+			while(DF<DISK_LIST+512)do
+				if([DF]==0)then
+					break;
+				endif;
+				DF=DF+1;
+			endwhile;
+			if(DF>=DISK_LIST+512)then
+				inline "JMP 11776";
+			endif;
+			[DF]=[DF]+1;
+			victim_page=[PTBR_physical];
+			store([PTBR_physical],DF%512);
+			[PTBR_physical]=DF%512;
+			[PTBR_physical+1]="00";
+		else
+			print("boo");
+			breakpoint;
+		endif;
+//-----page replace end
+// 		[physicalSP-2]=-1;
+// 		ireturn;
+	endif;//if dhaatipothe
+ 	[ML]=1;
+ 	//child PTBR
+ //the 4th entry
+ alias index S9;
+ 	index=0;
+	while(index<512)do
+		[(ML%64)*512+index]=[[PTBR+6]*512+index];
+		index=index+1;
+	endwhile;
+	[newPTBR+6]=ML%64;
+	[newPTBR+7]="01";
+//print("PTBR");
+	index=0;
+ 	
+ 	[child_PTBR+0]=[PTBR+0];
+	[child_PTBR+1]=[PTBR+1];
+	[child_PTBR+2]=[PTBR+2];
+	[child_PTBR+3]=[PTBR+3];
+	[child_PTBR+4]=[PTBR+4];
+	[child_PTBR+5]=[PTBR+5];
+ 
+ alias i S9;
+ 	i=PTBR;
+ 	
+ 	while(i<PTBR+6)do
+ 		if([i+1]=="01" || [i+1]=="11")then
+ 			[MEM_LIST+[i]]=[MEM_LIST+[i]]+1;
+ 		endif;
+ 		i=i+2;
+ 	endwhile;
+ 
+ 
+ 	i=PTBR;
+ 	while(i<PTBR+6)do
+ 		if([i+1]=="10" || [i+1]=="00")then
+ ///if swap is in block:)
+ 			if([i]>=448)then
+ 			[DISK_LIST+[i]]=[DISK_LIST+[i]]+1;
+ 			endif;
+ 		endif;
+ 		i=i+2;
+ 	endwhile;
+ store(6,20);
+ 
+ 	///modifiaction till here
+	//step 5
+//breakpoint;
+	
+//
+
+	[newPCB+2]=BP;
+//sp
+	[newPCB+3]=SP-1;
+//ip
+	[newPCB+4]=[physicalSP];
+//PTBR
+	[newPCB+5]=child_PTBR;
+	[newPCB+6]=[currentPCB+6];
+	[newPCB+7]=R0;
+	[newPCB+8]=R1;
+	[newPCB+9]=R2;
+	[newPCB+10]=R3;
+	[newPCB+11]=R4;
+	[newPCB+12]=R5;
+	[newPCB+13]=R6;
+	[newPCB+14]=R7;
+	PPOFTphysical = currentPCB + 15;
+	temp=15;
+	//SWOFTphysical=1344;
+	PPOFTphysical=currentPCB+15;
+	i=15;
+	while(PPOFTphysical<currentPCB+31)do
+		if([PPOFTphysical]!=-1)then
+			[FILE_TABLE+[PPOFTphysical]*2+1]=[FILE_TABLE+[PPOFTphysical]*2+1]+1;
+			[newPCB+i]=[PPOFTphysical];
+			[newPCB+i+1]=[PPOFTphysical+1];
+		else
+			[newPCB+i]=[PPOFTphysical];
+			[newPCB+i+1]=[PPOFTphysical+1];
+		endif;
+		i=i+2;
+		PPOFTphysical=PPOFTphysical+2;
+	endwhile;
+//print("state");
+	[newPCB+31]=[currentPCB+0];
+	[newPCB+1]=1;
+	[physicalSP-2]=newPID;
+//print("child ret");
+	temp=[newPCB+3];//SP of the child process
+	physicalSP = ([child_PTBR + 2 * (temp / 512)] * 512) + (temp % 512);
+	//print(physicalSP);
+	[physicalSP-1]=-2;//
+//print("!FORK");
+//breakpoint;
+//if(newPID==38)then
+//	print(newPID);
+//	breakpoint;
+//endif;
+
+	ireturn;
+	
+	
+	
+endif;
+
+
+//duplicating pcb
+
+

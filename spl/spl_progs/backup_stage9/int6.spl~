@@ -1,0 +1,145 @@
+alias physicalSP S0;
+physicalSP = [PTBR+(SP/512)*2]*512+(SP%512);
+
+alias systemcall S1;
+systemcall = [physicalSP-1];
+
+alias filename S3;
+filename = [physicalSP-3];
+
+alias FAT_physical S4;
+alias basic_block S5;
+alias required S6;
+alias basic_physical S7;
+alias PTBR_physical S8;
+alias available S9;
+alias ML S10;
+alias SWOFTindex S11;
+alias PPOFTindex S12;
+alias currentPCB S13;
+alias currentPID S14;
+alias PPOFTphysical S2;
+alias SWOFTphysical S15;
+
+FAT_physical = FAT;
+if(systemcall==9)then
+	while(FAT_physical<FAT+512 && [FAT_physical+0]!=filename)do
+       	
+       	    FAT_physical=FAT_physical+8;
+       
+    	endwhile;
+    	if(FAT_physical>=FAT+512)then
+      //if name is not found
+       		[physicalSP-2]= -1;
+       		ireturn;
+    	endif;
+     print("c_swoft");
+
+	basic_block = [FAT_physical+2];
+	load(1,basic_block);
+//step3
+	required=0;
+	basic_physical=512;//basic physical
+	
+	while([basic_physical]!=-1 && [basic_physical]!="")do
+		basic_physical=basic_physical+1;	
+	
+		required=required+1;
+	endwhile;
+
+	PTBR_physical=PTBR;
+	available=0;
+	while(PTBR_physical<PTBR+6)do
+		if([PTBR_physical+1]=="01"||[PTBR_physical+1]=="11")then
+		available=available+1;
+		endif;
+		PTBR_physical=PTBR_physical+2;
+	endwhile;
+	if(available>required)then
+		PTBR_physical=PTBR+4;
+		while(available!=required && PTBR_physical>=PTBR)do
+			if([PTBR_physical+1]=="01"||[PTBR_physical+1]=="11")then
+				[MEM_LIST+[PTBR_physical]]=0;
+				[PTBR_physical]=-1;
+				[PTBR_physical+1]="00";
+				available=available-1;
+						PTBR_physical=PTBR_physical-2;
+			endif;
+		endwhile;
+	else
+
+		ML=MEM_LIST;
+		while(ML<MEM_LIST+64 && available!=required)do
+			if([ML]==0)then
+				PTBR_physical=PTBR;
+				while(PTBR_physical<PTBR+6)do
+					if([PTBR_physical+1]=="00"||[PTBR_physical+1]=="10")then
+						[PTBR_physical]=ML%64;
+						[PTBR_physical+1]="01";
+						available=available+1;
+						[ML]=1;
+						break;
+					endif;
+					PTBR_physical=PTBR_physical+2;
+				endwhile;
+				ML=ML+1;
+
+			endif;
+		endwhile;
+		if(required!=available)then
+			[physicalSP-2]= -1;
+       			ireturn;
+		endif;
+
+	endif;
+	PTBR_physical=PTBR;
+	basic_physical=512;
+	while(PTBR_physical<PTBR+6)do
+	    if([basic_physical]!=-1 && [basic_physical]!="")then
+			load([PTBR_physical],[basic_physical]);
+			
+		endif;
+		basic_physical=basic_physical+1;
+		PTBR_physical=PTBR_physical+2;
+	endwhile;
+//-------------------------------
+alias SWOFTindex S1;
+alias temp S10;
+	PPOFTindex=0;
+	currentPID = (PTBR - 1024) / 8;	
+	currentPCB = READY_LIST + 32 * currentPID;
+	temp=PPOFTphysical;
+	while(PPOFTindex<8)do
+		PPOFTphysical=currentPCB+15;
+		PPOFTphysical=PPOFTphysical+2*PPOFTindex;
+		if([PPOFTphysical]!=-1)then
+			SWOFTindex=[PPOFTphysical];
+			SWOFTphysical=FILE_TABLE+2*SWOFTindex;
+			[SWOFTphysical+1]=[SWOFTphysical+1]-1;
+			if([SWOFTphysical+1]==0)then
+				print("file=0");
+				[SWOFTphysical]=-1;
+			endif;
+			[PPOFTphysical]=-1;
+			[PPOFTphysical+1]=-1;
+		endif;
+		PPOFTindex=PPOFTindex+1;
+	endwhile;
+print("SP");
+	BP=3*512;
+	SP=3*512;
+print("IP");
+	physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+	[physicalSP] = 0;
+endif;
+ireturn;
+print("!EXEC");
+//---------------------------------
+
+
+
+
+
+
+
+

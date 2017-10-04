@@ -1,0 +1,5 @@
+print "In INT 1";
+inline "INT 2";
+//inline "JMP 6566";
+
+ireturn;

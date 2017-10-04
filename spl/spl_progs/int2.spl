@@ -1,0 +1,132 @@
+alias physical_sp S0;
+physical_sp = ([PTBR+2*(SP/512)]*512)+SP%512;
+
+alias systemcall S1;
+systemcall = [physical_sp -1];
+
+alias a S2;
+a=[physical_sp-3];
+
+alias FATindex S3;
+alias swoft_physical S4;
+alias ppoft_physical S5;
+alias currentPID S6;
+alias currentPCB S7;
+
+alias swoft_index S9;
+alias PPOFTindex S8;
+
+
+FATindex=FAT;
+////print("c_filename");
+//OPEN//
+if(systemcall == 2)then
+//check filename on FAT***************************
+   while(FATindex<FAT+512 && [FATindex+0]!=a)do
+            FATindex=FATindex+8;
+    endwhile;
+    if(FATindex>=FAT+512)then
+      // //print("!exist");
+       [physical_sp-2]= -1;
+       ireturn;
+    endif;
+//set fatindex
+     ////print("c_swoft");
+     FATindex=(FATindex%512)/8;//have index of FAT
+//is the file already opened?
+     swoft_physical=FILE_TABLE;
+     while(swoft_physical<FILE_TABLE+128 && [swoft_physical]!=FATindex)do
+     	   swoft_physical=swoft_physical+2;
+    endwhile;
+     if(swoft_physical>=FILE_TABLE+128)then
+//not on swoft, create new entry
+          swoft_physical=FILE_TABLE;
+        //  //print("c_swoft -1");
+          while(swoft_physical<FILE_TABLE+128 && [swoft_physical]!=-1)do
+               swoft_physical=swoft_physical+2;
+          endwhile;
+//swoft if full:)***************************
+          if(swoft_physical>=FILE_TABLE+128)then
+             [physical_sp-2]= -1;
+              ireturn;
+           endif;
+     endif;
+//set swoft index
+     swoft_index=(swoft_physical-FILE_TABLE)/2;//have index of SWOFT
+     //print(swoft_index);
+     //per process open file table
+//find PPOFT
+     currentPID=(PTBR-1024)/8;
+     currentPCB = READY_LIST +32*currentPID;
+
+     ppoft_physical=currentPCB+15;
+
+     PPOFTindex=0;
+     ////print("c_ppoft");
+//find free PPOFT
+     while(ppoft_physical<currentPCB+31 && [ppoft_physical+0]!=-1)do
+         ppoft_physical=ppoft_physical+2;
+         PPOFTindex=PPOFTindex+1;
+     endwhile;
+//8files open***************************
+     if(ppoft_physical>=currentPCB+31)then
+         [physical_sp-2]=-1;
+         ireturn;
+     endif;
+//set SWOFT,PPOFT values
+     //4th point
+     [swoft_physical]=FATindex;
+     [swoft_physical+1]=[swoft_physical+1]+1;
+     [ppoft_physical]=swoft_index;//pcb enter
+     [ppoft_physical+1]=0;
+//set return value as PPOFT index     
+     [physical_sp-2]=PPOFTindex;
+     //print("opened!");
+     ireturn;
+endif;
+if(systemcall == 3)then
+      //print("__close__");
+//valid file discriptor***************************
+        if(a<0 || a>7)then
+            //print("invalid");
+            [physical_sp-2]=-1;
+            ireturn;
+         endif;
+     //per process open file table
+//set PPOFT
+     currentPID=(PTBR-1024)/8;
+     currentPCB = READY_LIST +32*currentPID;
+
+     PPOFTindex=a;
+     ppoft_physical=currentPCB+15;
+     ppoft_physical=ppoft_physical+2*PPOFTindex;//
+//file not open***************************
+     if([ppoft_physical+0]==-1)then
+         //   //print("X_swoft");
+            [physical_sp-2]=-1;
+            ireturn;
+     endif;
+//modify SWOFT
+     swoft_index=[ppoft_physical];
+     swoft_physical=FILE_TABLE+(2*swoft_index);
+
+     [swoft_physical+1]=[swoft_physical+1]-1;
+//if all processes close, invalidate SWOFT
+	if([swoft_physical+1]==0)then
+		//print("file=0");
+		[swoft_physical]=-1;
+	endif;
+//print("PPOFT=-1");	
+//invalidate PPOFT
+	[ppoft_physical]=-1;
+	[ppoft_physical+1]=-1;
+
+	[physical_sp-2]=0;
+        //print("!closed");
+              ireturn;  
+endif;
+
+
+    
+
+

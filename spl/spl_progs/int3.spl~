@@ -1,0 +1,131 @@
+alias physicalsp S0;
+physicalsp = ([PTBR+2*(SP/512)]*512 )+ SP%512;
+
+alias systemcall S1;
+systemcall = [physicalsp-1];
+
+alias file_des S2;
+file_des = [physicalsp-4];
+
+alias lseek S3;
+lseek = [physicalsp-3];
+
+alias current_pid S4;
+current_pid=(PTBR-1024)/8;
+
+alias current_PCB S5;
+current_PCB = READY_LIST + (32*current_pid);
+
+
+alias ppoft_physical S6;
+alias ppoft_index S7;
+alias swoft_index S8;
+
+alias swoft_physical  S10;
+alias file_size S11;
+alias data_physical S12;
+alias data_index S13;
+alias fat_physical S15;
+alias rseek S14;
+
+//SEEk//
+if(systemcall == 6)then
+//valid filediscriptor***************************
+        if(file_des<0 || file_des>7)then
+            //print("invalid");
+            [physicalsp-2]=-1;
+            ireturn;
+         endif;
+//fetch PPOFT         
+    ppoft_physical = current_PCB +15;
+    ppoft_physical=ppoft_physical+file_des*2;
+//file open?***************************
+    if([ppoft_physical]==-1)then
+       //print("file isnt O");
+       [physicalsp-2]=-1;
+       ireturn;
+    endif;
+//fetch SWOFT for filesize
+    swoft_index=[ppoft_physical];
+    //print(swoft_index);
+    swoft_physical = FILE_TABLE + swoft_index*2;
+    //fat_index = [swoft_physical];//has fat index
+    //print([swoft_physical]);//fat index
+    fat_physical= FAT + [swoft_physical]*8;
+    file_size=[fat_physical+1];
+    
+//lseek in bounds***************************
+    if(lseek<0 || lseek>=file_size)then
+       //print("invalid Lseek");
+       [physicalsp-2]=-1;
+       ireturn;
+    endif;
+//set new lseek    
+    //print([ppoft_physical+1]);
+    [ppoft_physical+1]=lseek;
+    //print([ppoft_physical+1]);
+    ireturn;
+endif;
+//READ
+if(systemcall==7)then
+
+    ppoft_physical = current_PCB +15;
+//file valid?***************************    
+     if(file_des<0 || file_des>7)then
+            //print("invalid");
+            [physicalsp-2]=-1;
+            ireturn;
+     endif;
+//file open?***************************    
+    ppoft_physical=ppoft_physical+file_des*2;
+    if([ppoft_physical]==-1)then
+       //print("file isnt O");
+       [physicalsp-2]=-1;
+       ireturn;
+    endif;
+//check SWOFT to fetch FAT
+    swoft_index=[ppoft_physical];
+    rseek=[ppoft_physical+1];
+    //print(swoft_index);
+    swoft_physical = FILE_TABLE + swoft_index*2;
+    //fat_index = [swoft_physical];//has fat index
+    //print([swoft_physical]);//fat index
+    fat_physical= FAT + [swoft_physical]*8;
+//load BasicBlock    
+    load(1,[fat_physical+2]);
+    file_size=[fat_pysical+1];
+//lseek in bounds***************************
+    if(rseek<0 || rseek>=file_size)then
+       //print("invalid Lseek");
+       //[physicalsp-3]="error";(not needed)
+       [physicalsp-2]=-1;
+       ireturn;
+    endif;
+//load DataBlock
+    data_index=rseek/512;
+    data_physical=512+data_index;
+//max filesize??***************************
+//    if((rseek/512)>255)then
+//        //print("> 255");
+//    	[physicalsp-2]=-1;
+//    	ireturn;
+//    endif;
+    //print("here");
+    //print(rseek);
+    //print(data_index);
+    //print([data_physical]);
+    //print("here");
+    load(1,[data_physical]);
+    //breakpoint;
+    //print([512+(rseek%512)]);
+//fetch word to return value(word)    
+    [physicalsp-3]=[512+(rseek%512)];
+    //print("rseek");
+    //print([physicalsp-3]);
+//lseek++
+    [ppoft_physical+1]= [ppoft_physical+1]+1;
+    //successess
+    [physicalsp-2]=0;
+    	ireturn;
+endif;
+             
